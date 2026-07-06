@@ -1,0 +1,1200 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>국어 영역 - 디지털 시험지</title>
+<style>
+  :root {
+    --paper: #fdfcf9;
+    --ink: #1a1a1a;
+    --ink-soft: #4a4a48;
+    --rule: #1a1a1a;
+    --rule-light: #c9c5bb;
+    --accent: #8b2c2c;
+    --correct: #2d6a4f;
+    --correct-bg: #e8f3ed;
+    --wrong: #8b2c2c;
+    --wrong-bg: #faeded;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #e8e6e0;
+    font-family: "Noto Serif KR", "Batang", serif;
+    color: var(--ink);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── 상단 바 ── */
+  .topbar {
+    flex-shrink: 0;
+    background: var(--ink);
+    color: #fdfcf9;
+    padding: 9px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: "Noto Sans KR", sans-serif;
+    font-size: 13px;
+    z-index: 10;
+  }
+  .topbar .title { font-weight: 600; }
+  .topbar .progress { color: #cfcabe; }
+
+  /* ── 메인 영역 (지문 고정 + 문항 스크롤) ── */
+  .main-area {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    gap: 0;
+  }
+
+  /* 지문 패널 */
+  .passage-panel {
+    width: 50%;
+    background: var(--paper);
+    border-right: 2px solid var(--rule-light);
+    overflow-y: auto;
+    padding: 28px 28px 40px;
+    flex-shrink: 0;
+  }
+  .passage-panel::-webkit-scrollbar { width: 6px; }
+  .passage-panel::-webkit-scrollbar-thumb { background: var(--rule-light); border-radius: 3px; }
+
+  .passage-range {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--ink-soft);
+  }
+  .passage-source {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 14px;
+    font-family: "Noto Sans KR", sans-serif;
+  }
+  .passage-text {
+    font-size: 15px;
+    line-height: 2.0;
+    text-align: justify;
+    word-break: keep-all;
+  }
+  .passage-text p { margin-bottom: 0.6em; }
+
+  /* 문항 패널 */
+  .question-panel {
+    width: 50%;
+    background: #f6f4ee;
+    overflow-y: auto;
+    padding: 28px 28px 100px;
+  }
+  .question-panel::-webkit-scrollbar { width: 6px; }
+  .question-panel::-webkit-scrollbar-thumb { background: var(--rule-light); border-radius: 3px; }
+
+  /* 문항 번호 / 지시문 */
+  .q-number {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .q-points {
+    font-size: 12px;
+    color: var(--ink-soft);
+    font-family: "Noto Sans KR", sans-serif;
+    font-weight: 400;
+  }
+  .result-badge { display: none; } /* SVG 마크로 대체 */
+
+  /* 채점 마크 공통 */
+  .mark-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  /* 선지 번호 위 체크 오버레이 */
+  .num-btn-wrap {
+    position: relative;
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    margin-top: 1px;
+  }
+  .num-btn-wrap .num-btn {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+  }
+  .num-btn-wrap .check-mark {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .q-stem {
+    font-size: 15px;
+    line-height: 1.85;
+    margin-bottom: 14px;
+    word-break: keep-all;
+  }
+
+  /* 보기 박스 */
+  .box-example {
+    border: 1px solid var(--rule);
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    font-size: 14.5px;
+    line-height: 1.85;
+    background: #fbfaf6;
+    word-break: keep-all;
+  }
+  .box-label {
+    text-align: center;
+    font-weight: 700;
+    font-size: 13px;
+    margin-bottom: 8px;
+    letter-spacing: 0.2em;
+  }
+
+  /* 선택지 */
+  .choices { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+  .choice-row { display: flex; flex-direction: column; }
+
+  .choice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 12px;
+    margin-bottom: 2px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14.5px;
+    line-height: 1.65;
+    word-break: keep-all;
+    transition: background 0.12s, border-color 0.12s;
+    border: 1.5px solid transparent;
+    -webkit-tap-highlight-color: transparent;
+    background: var(--paper);
+  }
+  .choice:hover { background: #eceae3; }
+  .choice.selected {
+    background: #eceae3;
+    border-color: var(--ink);
+  }
+  .num-btn {
+    flex-shrink: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1.5px solid var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-family: "Noto Sans KR", sans-serif;
+    font-weight: 600;
+    background: var(--paper);
+    margin-top: 1px;
+  }
+  .choice.selected .num-btn { background: var(--ink); color: var(--paper); }
+  .choice-text { flex: 1; padding-top: 2px; }
+
+  /* 채점 후 선택지 스타일 */
+  .graded-mode .choice { cursor: pointer; }
+  .graded-mode .choice.is-answer { background: var(--correct-bg); border-color: var(--correct); }
+  .graded-mode .choice.is-answer .num-btn { background: var(--correct); border-color: var(--correct); color: #fff; }
+  .graded-mode .choice.is-wrong-pick { background: var(--wrong-bg); border-color: var(--wrong); }
+  .graded-mode .choice.is-wrong-pick .num-btn { background: var(--wrong); border-color: var(--wrong); color: #fff; }
+  .graded-mode .choice:not(.is-answer):not(.is-wrong-pick):hover { background: #f1efe8; }
+
+  /* 해설 */
+  .hint-text {
+    display: none;
+    font-family: "Noto Sans KR", sans-serif;
+    font-size: 12px;
+    color: #8a877d;
+    margin: 6px 0 4px;
+  }
+  .graded-mode .hint-text { display: block; }
+
+  .explanation {
+    display: none;
+    margin: 4px 0 6px 0;
+    padding: 12px 14px;
+    background: #f0ede6;
+    border-left: 3px solid var(--ink);
+    font-family: "Noto Sans KR", sans-serif;
+    font-size: 13px;
+    line-height: 1.8;
+    color: #2b2b2a;
+    word-break: keep-all;
+    white-space: pre-line;
+  }
+  .explanation.is-open { display: block; }
+  .exp-label {
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 5px;
+    letter-spacing: 0.05em;
+  }
+  .intro-explanation {
+    margin-bottom: 12px;
+    border-left-color: var(--accent);
+  }
+
+  /* checked-by-student 표시 */
+  .graded-mode .choice.checked-by-student .choice-text::after {
+    content: " ✓";
+    font-size: 11px;
+    color: #8a877d;
+    font-family: "Noto Sans KR", sans-serif;
+  }
+
+  /* ── 하단 네비게이션 바 ── */
+  .nav-bar {
+    flex-shrink: 0;
+    background: var(--ink);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    font-family: "Noto Sans KR", sans-serif;
+    z-index: 10;
+  }
+  .nav-right  { display: flex; gap: 8px; align-items: center; }
+
+  .btn {
+    padding: 10px 22px;
+    border-radius: 6px;
+    border: none;
+    font-size: 13.5px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: "Noto Sans KR", sans-serif;
+    white-space: nowrap;
+  }
+  .btn-prev, .btn-next {
+    background: transparent;
+    color: #cfcabe;
+    border: 1px solid #57544c;
+  }
+  .btn-prev:hover, .btn-next:hover { color: #fff; border-color: #cfcabe; }
+  .btn-submit { background: var(--accent); color: #fff; }
+  .btn-submit:hover { background: #732424; }
+  .btn-submit:disabled { background: #57544c; cursor: default; }
+  .btn-download { background: #2d6a4f; color: #fff; display: none; }
+  .btn-download:hover { background: #245740; }
+
+  .q-indicator {
+    font-size: 13px;
+    color: #cfcabe;
+    min-width: 60px;
+    text-align: center;
+  }
+
+  /* ── 모바일: 세로 분할 ── */
+  @media (max-width: 700px) {
+    body { overflow: auto; height: auto; }
+    .main-area { flex-direction: column; overflow: visible; height: auto; }
+    .passage-panel, .question-panel {
+      width: 100%;
+      overflow-y: visible;
+      border-right: none;
+      border-bottom: 2px solid var(--rule-light);
+    }
+    .nav-bar { position: sticky; bottom: 0; }
+  }
+
+  /* bracket-A */
+  .bracket-A { text-decoration: underline; text-decoration-thickness: 1px; }
+  .bracket-label { font-weight: 700; font-size: 13px; margin-left: 2px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="title">2026학년도 5월 고3 전국연합학력평가 · 국어</div>
+  <div class="progress" id="progressText">0 / 0 문항 풀이</div>
+</div>
+
+<div class="main-area">
+  <div class="passage-panel" id="passagePanel">
+    <!-- 지문이 여기 고정 표시 -->
+  </div>
+  <div class="question-panel" id="questionPanel">
+    <!-- 현재 문항 1개만 표시 -->
+  </div>
+</div>
+
+<div class="nav-bar">
+  <span class="q-indicator" id="qIndicator">1 / 1</span>
+  <div class="nav-right">
+    <button class="btn btn-prev" id="prevBtn" onclick="movePrev()">◀ 이전</button>
+    <button class="btn btn-next" id="nextBtn" onclick="moveNext()">다음 ▶</button>
+    <button class="btn btn-submit" id="submitBtn">제출하고 채점하기</button>
+    <button class="btn btn-download" id="downloadBtn">결과 파일 다운로드</button>
+  </div>
+</div>
+
+<script>
+/* ─── Notion 자동 기록 설정 ─── */
+/* Google Apps Script 배포 후 나오는 웹 앱 URL을 여기에 붙여넣으세요 */
+const NOTION_WEBHOOK_URL = 'https://script.google.com/macros/s/여기에_배포된_웹앱_ID/exec';
+/* 이 시험지의 이름 (Notion "시험명" 칸에 기록됨) */
+const EXAM_NAME = '2026학년도 6월 모의평가 국어';
+
+function sendResultToNotion(result) {
+  if (!NOTION_WEBHOOK_URL || NOTION_WEBHOOK_URL.indexOf('여기에') !== -1) return;
+  fetch(NOTION_WEBHOOK_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(result)
+  }).catch(() => {});
+}
+
+const passages = [
+  {
+    id: "P1",
+    range: "1 ~ 3",
+    source: "[독서이론] <출전> 로이스 타이슨, 「비평이론의 모든 것」",
+    text: `
+<p>글을 읽을 때 글에 사용된 개념 간의 관계를 분석하는 것은 글에 담긴 개별적 내용뿐만 아니라 글 전체의 논리적 구조를 함께 파악하는 데 도움이 된다. 이항 대립 구조는 두 가지 개념을 짝지어 상반되는 성격으로 대립시키는 것으로, 글의 구조를 완성하고 주제를 강조하기 위해 사용된다. 독자가 글을 읽을 때 어휘나 문장과 같은 글의 개별 요소의 의미를 분석하여 저자가 설정한 이항 대립 구조를 파악하면, 글의 구조를 파악할 수 있을 뿐만 아니라 이항 대립 구조를 단서로 저자의 의도를 추론할 수도 있다.</p>
+<p>이렇게 이항 대립 구조를 분석함으로써 저자의 의도를 추론할 수 있다는 것을 전제로, 저자의 의도에서 벗어나 글의 의미를 확장하는 읽기 방법이 해체적 읽기이다. 해체적 읽기에서는 이항 대립되는 개념들 사이에 저자가 어느 쪽의 개념을 강조하느냐에 따라 위계가 필연적으로 형성된다고 보고, 이 위계의 모순을 밝힌다. 해체적 읽기는 글을 다음과 같은 세 단계로 나누어 분석한다. 첫 번째 단계는 이항 대립 구조를 확인하는 것으로 독자는 글에서 대립되어 있는 두 가지 개념의 짝을 찾아야 한다. 글 안에 흩어져 있는 어휘나 문장과 같은 글의 개별 요소를 두 개의 대립군으로 분류함으로써, 그 대립 관계가 글의 구조를 관통하는 핵심적인 이항 대립 구조임을 식별해 내는 것이다. 두 번째 단계는 이항 대립 구조 속의 위계를 파악하는 것이다. 이를 위해 독자는 글에서 어휘나 문장 등이 쓰인 맥락을 분석하여 저자가 긍정적으로 여기는 개념과 부정적으로 여기는 개념 사이의 위계를 확인해야 한다. 마지막 단계는 앞서 파악한 위계의 모순을 밝히는 것이다. 독자는 글에 부정적으로 나타난 개념에 새로운 가치를 부여함으로써 저자가 설정한 위계가 절대적이지 않음을 파악할 수 있다. 혹은 글에서 저자가 말하고자 한 바와 실제로 글이 의미하고 있는 바가 어긋나는 지점을 포착하여 위계의 모순을 파악할 수 있다. 이를 통해 글의 의미가 하나로 정해지지 않으며 글은 다양한 관점에서 해석될 수 있음을 알 수 있다.</p>
+<p>독자는 해체적 읽기를 통해, 글의 의미가 고정된 것이 아니라 다양하게 변할 수 있음을 파악한다. <span class="bracket-A">이를 바탕으로 독자가 저자의 의도대로 해석한 내용이 언제나 객관적이고 타당한 것은 아니며, 관점에 따라 다양한 해석이 존재함을 알 수 있다.<span class="bracket-label">[A]</span></span> 또한 독자는 글을 저자에 의해 완성된 결과물이 아니라 의미가 확장되는 공간으로 받아들여, 글을 재구성함으로써 새로운 의미를 만들어 내는 능동적인 독자로 거듭나게 된다.</p>
+    `
+  }
+,
+  {
+    id: "P2",
+    range: "10 ~ 13",
+    source: "[과학] <출전> 유진 헥트, 「광학」",
+    text: `
+<p>카메라 등의 광학 기기에 쓰이는 볼록 렌즈는, 물체에서 반사되어 렌즈로 입사한 광선들을 수렴시킨다. 물체 표면의 한 점인 물체점에서 렌즈로 입사한 여러 광선이 굴절하여 수렴하는 점을 상점이라고 한다. 렌즈로 입사한 모든 광선이 하나의 상점에 수렴한다면 상은 뚜렷한 점의 형태로 맺히지만, 하나의 상점에 수렴하지 않으면 상이 흐려지거나 일그러져 보이는 수차 현상이 <u>ⓐ 발생한다</u>. 특히 물체점이 광축에서 멀리 떨어지면 렌즈에서 굴절된 광선들은 서로 다른 두 상점에 수렴하게 되어 흐릿한 상을 맺는 경우가 있는데, 이러한 현상은 비점 수차에 <u>ⓑ 해당한다</u>.</p>
+<p>광축은 렌즈의 중심을 지나면서 렌즈 면에 수직인 가상의 직선이다. 물체점이 광축 위에 있고, 렌즈가 회전 일치성을 지니며, 광선들이 하나의 상점에 수렴할 경우 뚜렷한 상이 맺힌다. 이때 회전 대칭성이란 광축을 중심으로 회전시켜도 항상 원래의 형태와 겹쳐지는 성질이다. 물체점으로부터 렌즈로 입사한 광선들의 집합인 광선 다발은 물체점을 꼭짓점으로 하는 원뿔 형상을 띤다. 렌즈 중심으로 <u>ⓒ 향하는</u> 광선인 주광선은 광선 다발을 대표하는데, 주광선은 광축을 따라 렌즈 중심으로 입사하고 광선 다발의 형상은 광축을 중심으로 회전 대칭성을 지니게 된다. 이에 따라 주광선을 포함하는 평면들로 광선 다발을 나누었을 때, 광선들의 입사 양상이 어떤 평면에서든 동일해져, 전체 광선 다발은 광축 위에 있는 하나의 상점에 수렴하게 된다.</p>
+<p>반면 물체점이 광축에서 멀리 벗어나면 주광선은 광축을 따라 입사하지 않게 되며, 광선 다발의 형상은 광축을 기준으로 회전 대칭성을 보이지 않게 되어 비점 수차가 발생한다. 이때 광선 다발의 수렴 양상을 살필 수 있게 하는 평면이 자오면과 구결면이다. 자오면은 광축과 주광선을 포함하는 단 하나의 평면이며, 광축을 중심으로 물체점이 어느 방향에 있는지를 드러낸다. 구결면은 자오면과 수직인 평면으로, 광축을 포함하지 않으며 주광선을 포함하는 평면이다. 자오면 위에 있는 광선들인 자오 광선과 구결면 위에 있는 광선들인 구결 광선은 입사 양상이 서로 다르며, 이에 따라 굴절 양상도 다르다. 이 때문에 광선들이 서로 다른 위치에 수렴하게 되는데, 자오 광선이 수렴하는 점을 자오 상점, 구결 광선이 수렴하는 점을 구결 상점이라고 한다. 이때 자오 상점이 구결 상점보다 렌즈의 중심까지의 거리가 더 가깝다.</p>
+<p>자오 상점과 구결 상점 사이의 거리인 비점 격차가 커질수록 비점 수차는 심해진다. 비점 격차는 물체점에서 광축까지의 거리의 제곱, 즉 물체점에서 광축까지 수직으로 그은 선의 길이의 제곱에 비례한다. 자오 상점부터 구결 상점까지의 임의의 지점에서 맺히는 상의 형상은, 같은 지점에서 광선 다발을 광축에 수직인 면으로 잘랐을 때 그 단면의 형상과 <u>ⓓ 동일하다</u>. 자오 상점에서 맺히는 상을 일차상이라고 하고, 구결 상점에서 맺히는 상을 이차상이라고 한다. 일차상과 이차상은 모두 선분의 형상인데, 일차상은 구결면 위에 놓여 주광선과 수직 관계를 이루고, 이차상은 자오면 위에 놓여 주광선과 수직 관계를 이룬다. <u>ⓔ 이때 일차상과 이차상은 서로 수직이다</u>. 비점 격차가 커질수록 일차상의 길이와 이차상의 길이는 길어진다. 일차상과 이차상 사이에 맺히는 상의 대부분은 타원의 형상을 띠지만, 중간 부근에 원형을 띠는 유일한 지점이 있는데 이 지점에서의 상을 최소 착란원이라고 한다. 최소 착란원은 광선들이 하나의 상점에 수렴할 때 형성되는 상과 형태가 가장 <u>ⓔ 유사하며</u>, 일차상과 이차상 사이에 맺히는 상 중 가장 뚜렷하다. 비점 격차가 클수록 최소 착란원은 크기가 커지면서 흐려진다.</p>
+    `
+  },
+  {
+    id: "P3",
+    range: "14 ~ 17",
+    source: "[사회] <출전> 법무부, 「집합건물법 해석사례집」",
+    text: `
+<p>오늘날 하나의 건물 안에 여러 세대와 점포 등이 공존하는 집합건물이 보편화되었다. 민법의 개별 소유와 공동 소유의 내용에 대한 규정만으로는, 하나의 건물 안에서 개별적으로 소유하는 공간과 공동으로 소유하는 공간이 공존하면서 발생하는 문제를 조정하는 데 한계가 있었다. 집합건물법이 제정되면서 <u>구분소유권</u>이라는 권리를 통해 집합건물 내의 다양한 권리관계를 명료하게 하여 공동생활을 합리적으로 규율할 수 있게 되었다.</p>
+<p>구분소유권은 전유부분을 개별 소유의 대상으로 삼는 소유권을 의미하는데, 전유부분은 건물 내에서 구조상 독립성과 이용상 독립성을 모두 갖춘 부분이고 전유부분 이외의 건물 부분은 공용부분이라고 한다. 이때 구조상 독립성이란 각 건물 부분이, 바닥이나 천장, 벽, 출입문과 같이 건물을 구성하고 있지만 쉽게 이동되거나 제거될 수 없는 부분에 의해, 공용부분이나 다른 구분소유자들의 전유부분과 차단된 것을 말한다. 이용상 독립성이란 해당 부분이 다른 전유부분을 통하지 않고도 공용부분이나 외부로 출입할 수 있어, 독립된 세대, 점포 등으로 사용될 수 있어야 함을 의미한다. 구분소유권이 성립하기 위해서는 구분 행위가 필요하다. 구분 행위란, 건물을 분양하는 사람이 건물의 특정 부분을 구분하여 별개의 소유 대상으로 삼으려는 의사를 객관적으로 외부에 표시하는 것을 의미한다. 구분 행위는 분양 계약, 건축물대장 기재, 등기 등 다양한 방식이 가능하며, 전유부분에 대한 구분 행위가 있으면 그 건물에 대해 구분소유권이 성립한다.</p>
+<p>공용부분에는 복도, 옥상, 공동 현관 등의 건물 부분과, 엘리베이터와 같은 건물의 부속물이 있다. 공용부분은 구분소유자들이 공유한다. 구분소유자가 전유부분을 소유함으로써 자동으로 얻게 되는 권리가 바로 공용부분에 대한 지분이다. 공용부분의 지분은 해당 구분소유자의 전유부분의 면적이 전체 전유부분의 면적에서 차지하는 비율로 결정되며, 공용부분으로 인한 수익과 비용 역시 공용부분의 지분 비율에 따른다. 전유부분이 될 수 있는 공간도 규약을 통해 공용부분으로 지정하여 노인정, 공동 휴게 공간 등으로 사용하는 것도 가능하다. 단, 이때는 공용부분이라는 것을 반드시 등기해야 한다.</p>
+<p>구분소유권의 주체인 구분소유자는 집합건물의 특성 때문에 개별 소유 대상인 전유부분에 대해서도 권리 행사에 제약을 받는다. 구분소유자는 전유부분을 자유롭게 사용하고 처분할 수는 있지만 건물의 관리 및 사용에 있어서 단체 규율에 의해 제약을 받는다. 따라서 건물의 유지에 해가 되는 행위를 하는 것 등은 제재를 받을 수 있다. 개별 소유하고 있는 전유부분을 확장하는 것도 건물의 안전을 해치거나 구분소유자 공동의 이익을 침해하면 제한을 받을 수 있다는 것이다.</p>
+<p>공용부분의 관리에 대한 의사결정은 원칙적으로 구분소유자들의 결의를 중심으로 이루어진다. 공용부분의 형태나 기능 등을 변화시키는 경우도 이에 해당한다. 다만 안전 등을 사유로 긴급한 조치가 필요한 경우에는 구분소유자 개인이 단독으로 훼손된 공용부분을 복구하는 보존행위를 할 수도 있다. 이런 경우에는 관리단에 그 비용을 청구할 수 있다. 전유부분에 하자가 생긴 경우라도, 하자의 원인이 불분명할 때에는 공용부분의 하자로 여기고 구분소유자의 공동책임으로 보아 관리단에 수리 비용을 청구할 수 있다. 하자가 생긴 원인이 전유부분에 있다는 것이 명확히 밝혀지기 전까지는 누수, 난방 불량 등의 원인을 건물 전체의 구조나 공용 설비 문제로 간주하는 것이다.</p>
+<p>구분소유자들의 의사결정은 관리단 집회를 통해 이루어진다. 관리단은 건물에 대하여 구분소유권이 성립되면 구분소유자 전원을 구성원으로 하여 별다른 절차가 없어도 설립된다. 관리단은 집합건물의 공동 관리를 위한 최종 의사결정의 주체이다. 관리단에서 각 구분소유자의 의결권은 규약에 특별한 규정이 없는 한, 전유부분의 면적 비율에 따라 결정된다. 구분소유자 전원은 구분소유자의 지위를 가지는 동안은 본인의 <span class="bracket-A">의사와 관계없이 법률의 규정에 의하여 구성원이 된다. 관리단에서 적법하게 결의된 사항은 그 결의에 반대한 구분소유자에 대해서도 효력을 미칠 수 있다. 구분소유자가 10인 이상일 때는 관리인을 선임해야 한다. 관리인은 구분소유자일 필요가 없으며, 관리단을 대표해 관리단의 결의 결과를 집행하는 법적 지위를 갖는다.<span class="bracket-label">[A]</span></span></p>
+    `
+  },
+  {
+    id: "P4",
+    range: "18 ~ 21",
+    source: "[현대 소설] <출전> 이동하, 「모래」",
+    text: `
+<p><strong>사환아</strong>는 한동안 멍하니 서 있기만 했다. <u>㉠도무지 무슨 영문인지 알 수가 없었다.</u> 당분간 조업을 전면 중단하고 휴라나……. 그것도 전혀 예고 없이 이 아침에 갑자기. 그녀는 눈을 동그랗게 치든 채 예의 <u>㉡ 공고문을 뜯어이해 읽었다.</u> 입사 이래만 이 년 동안 한 번도 없던 일이었다. 혹심한 불경기라고 <strong>귀꼬리만한 사환 봉급</strong>까지 삼십 프로나 <strong>에누리하여 지급</strong>하는 소동을 벌였던 지난 여름에도 노래이 사장은, 그 조업 자체를 중단시키지는 않았던 것이다. 하물며 지금은 구정 대목을 눈앞에 두고 있는 때라 공급이 엄청나게 달리는 판인 것이다.</p>
+<p>사환아이는 영하의 추위 속에 오돌오돌 떨며 서 있었다. 정말 이대로 돌아가 버려도 괜찮을까? 건고하게 닫혀져 있는 철제 대문과 그 위에 나붙어 있는 종이쪽을 몇 번이고 새겨 보면서 그녀는 무작정 떨기만 했다. 그러자 이상하게도 일종의 안도감 같은 것이 느껴져 왔다. 어젯든 오늘 근무를 하지 않아도 된다는 것은 과히 싫지 않았다. <strong>제대로 난방도 되지 않은 사무실</strong>에서 오늘 하루는 또 얼마나 부대낄 것인가. <u>㉢해묵은 천식을 앓고 있는 그 늙다리 총무부장은 아마도, 서너 시간마다 탄불을 갈아 넣으라고 설화일 것이다.</u> 그런다고 섭공공한 난로가 얼마나 더 뒤쳐질 것인가. 필경에는 고물 석유난로까지 꺼내다 놓고는 기름을 사람, 심지를 소제하라 한바탕 난리를 피울 것이었다.</p>
+<p>정말 지겨운 일과들이었다. 그런데 뜻밖에도 그런 따위에서 문득 풀려난 것이다. 그리하여 <strong>사환에</strong>는, 이 아침의 <strong>돌연한 사태</strong>가 적어도 당장에는 <strong>그다지 해로울 게 없다</strong>는 사실을 깨달았다. 이런 기회에, 직장에 나가고 있는 <strong>친구들이나 죄 순방해 보</strong>기로 하자, 하고 그녀는 생각했다. <u>㉣그러고는 오랜만에 영화라도 한 프로 갑상해야지.</u> 아니야, 어느 극장에서던, 내가 좋아하는 가수가 리사이틀을 하고 있다지. 그래, 명자나 수연일 불러내서 거길 가야지. 고 계집애들도 미치게 좋아할 거야…….</p>
+<p>갑자기 즐거워진 마음으로 그녀는 돌아섰다. 그러고는 막 발을 때 놓으려다 말고 멈추어 섰다. 타과 소속의 사환애들 서넛이 한꺼번에 나타났기 때문이었다.</p>
+<p>"영희 니, 왜 그러구 있니?"<br>그들 중의 하나가 말했다.<br>"벌써 퇴근하는 건 아닐 게구 말야."<br>거대한 대신 문제의 공고문을 코끝으로 가리켜 보였다. 그 얼굴엔 즐거움이 가득 넘치고 있었다.</p>
+<p>공고문을 본 사환애들은 영희가 그랬던 것처럼 멍청한 표정들을 지은 채 한동안 말이 없었다. 그들은 서로의 얼굴을 멀거니 처다보면서, 가쁜 호흡들을 가라앉히느라 색색거렸다.</p>
+<p>"예, 참 별일이다. 그지?"<br>영희의 보충 설명을 듣고 나서야 그들 중 하나가 말하고 갑자기 해해 웃어대기 시작했다.<br>"그 노래이 사장님께서 날씨 탓으로 그만 헤까닥한 건 아닐까?"</p>
+<p>기묘하게 일그러졌던 표정들을 풀고 그들은 환하게 웃었다.<br>"정말 별일이다 얘. 그러니까 우리더러 당분간 집에서 푹 쉬라, 그런 뜻이지?"<br>"아, 푹 쉬는 거 좋아하지 마!"</p>
+<p>여자들의 수다 속에 묵묵히 입을 다물고 있던 영업과 소속의 <strong>남자 사환에</strong>가 퉁명스레 끼어들었다.<br>"왜?"</p>
+<p>여자애들이 물었다.<br>"이건 아무래도 이상한 말야. 생각들 해보라구. 이건 무슨 <strong>휴가 같은 게 아니라</strong> 말야. <strong>당분간 조업을 중단</strong>한다는 얘긴데, 그러면 <strong>결국 회사 문을 처닫는단 소리</strong> 아냐?"<br>"그래 아까 수위장 아저씨도 그렇게 말했어."<br>영희가 고개를 조아가겼다.</p>
+<p>(중략)</p>
+<p>모든 문제가 확연하게 밝혀진 것은 다섯 시가 훨씬 넘어서였다. 그리고 더 자세한 내용들이 전해진 것은, 그날 저녁의 회사 앞 다방이나 주점, 또는 귀하는 만원 버스 안에서였다. 사장은 결코 그러한 지시를 한 적이 없으며, 어젯든 일정이 너무나 바빳기 때문에 외유 기간 동안 본가로도 국제전화 한 통 할 기회가 없었다는 것이었다. 그러면 당일 밤의 <strong>숙직 사령 한비서</strong>는 누구로부터 그런 터무니없는 전화를 받았던가? 실상 종화를 한 장본인은 수위장 김씨였음이 밝혀졌다. 그는 오밤중에 걸려 온 국제전화를 통해 사장이라는 말만 듣고는 부리나케 한비서를 깨웠노라고 말했다. 그러나 난처하게도 한비서는 <strong>통화를 할 수 없는 상태</strong>였다. 통급이 가까워서야 술이 억병으로 취해서 기어든 그는 그 길로 곧장 잠에 굴아떨어져 버렸기 때문에 김씨가 아무리 흔들어 보아도 깨어날 기미가 영 보이지 않았던 것이다.</p>
+<p>남의 사정 잘 헤아릴 나이가 된 <strong>수위장 김씨</strong>는 하는 수 없이 <strong>스스로 비서 행세</strong>를 하면서 어물어름 통화를 했다. 결정적인 잘못은 거기서 빗어졌던 것이다. <u>㉤경황없이 통화를 끝낸 그는 식은땀이 촉촉하게 배어난 손으로 내용을 메모해 뒀다. 그러곤 새벽녘에 간신히 한비서를 깨우는 데 성공하여 그걸 전했노라고 실토했다.</u></p>
+<p>—내가 귀국할 때까지 모든 일을 중지할 것. 사장.</p>
+<p>이것이 한비서가 받은 <u>㉥메모</u>의 전부였다고 한다. 여기서부터 '당분간 일체의 조업을 중단하고 휴무할. 사장백'이라는 공고문이예의 녹슨 철제 대문 위에 나붙게 되기까지의 과정은 굳이 얘기 할 필요조차도 없는 일이다. <u>㉦이 대목에서만은 다들 쓴 입맛만다셨을 따름이었다.</u> 어쨌든 회사는 당장 다음날부터 <strong>정상 업무를 한다고 공시</strong>되었지만, 그러나 한비서와 부사장의 인책 사임의 소문과 더불어 회사의 장래에 대한 불안감이 <strong>전사원들</strong>의 마음을 어둡게 사로잡았다. 그 불안감은 예제야말로 확실한 것으로서 정말 <strong>실업의 위기</strong>가 몰아닥칠지도 모른다고 생각되었던 것이다. 왜냐하면 저 어처구니없는 사태로 하여 회사가 그간에 입은 손실이 너무나 심각한 것이었으므로 적어도, 당장에는 회사이를 타개할 전망이 보이지 않는다는 소문들이었기 때문이었다.</p>
+<p style="text-align:right">— 이동하, 「모래」—</p>
+    `
+  }
+];
+
+const questions = [
+  {
+    id: 1,
+    passageId: "P1",
+    points: 2,
+    category: "세부 내용 이해하기",
+    stem: "윗글을 읽고 이해한 내용으로 가장 적절한 것은?",
+    boxExample: "",
+    choices: [
+      "이항 대립 구조를 단서로 활용하면 저자의 의도를 추론할 수도 있다.",
+      "이항 대립 구조를 먼저 파악하여야 글의 개별 요소의 의미를 분석할 수 있다.",
+      "이항 대립 구조를 통해 글의 구조는 완성할 수 있지만 글의 주제를 강조하기는 어렵다.",
+      "이항 대립 구조는 상반되는 두 가지 개념을 합치시켜 글에 대한 통합적 관점을 제시한다.",
+      "글에 사용된 개념 간의 관계를 분석하면 글의 전체적인 구조는 파악할 수 있지만 글에 담긴 개별적 내용은 파악하기 어렵다."
+    ],
+    answer: 1,
+    intro: `[출제의도] 세부 내용 이해하기
+
+1문단에서 '이항 대립 구조를 단서로 저자의 의도를 추론'할 수 있다고 하였으므로 적절하다.`,
+    explanations: [
+      `(정답) 1문단에서 '이항 대립 구조를 단서로 저자의 의도를 추론'할 수 있다고 하였으므로 적절하다.`,
+      `1문단에서 독자가 어휘나 문장과 같은 글의 개별 요소의 의미를 분석하여 저자가 설정한 이항 대립 구조를 파악할 수 있다고 하였다. 즉 개별 요소의 의미 분석이 이항 대립 구조 파악에 선행하는 것이지, 이항 대립 구조를 먼저 파악해야 개별 요소의 의미를 분석할 수 있다는 것은 글의 순서와 반대이므로 적절하지 않다.`,
+      `1문단에서 이항 대립 구조는 '글의 구조를 완성하고 주제를 강조하기 위해 사용된다'고 하였으므로, 글의 구조를 완성할 수 있지만 주제를 강조하기 어렵다는 것은 적절하지 않다.`,
+      `1문단에서 이항 대립 구조는 두 가지 개념을 '짝지어 상반되는 성격으로 대립시키는 것'이라고 하였다. 두 개념을 합치시켜 통합적 관점을 제시하는 것이 아니라 대립시키는 것이므로 적절하지 않다.`,
+      `1문단에서 개념 간의 관계를 분석하는 것은 '글에 담긴 개별적 내용뿐만 아니라 글 전체의 논리적 구조를 함께 파악하는 데 도움이 된다'고 하였다. 즉 개별적 내용 파악에도 도움이 된다고 하였으므로, 개별적 내용은 파악하기 어렵다는 것은 적절하지 않다.`
+    ]
+  },
+  {
+    id: 2,
+    passageId: "P1",
+    points: 3,
+    category: "구체적 상황에 적용하기",
+    stem: "&lt;보기&gt;는 학생의 독서 활동 일지이다. 윗글을 바탕으로 ㉠ ~ ㉤을 이해한 내용으로 적절하지 않은 것은?",
+    boxExample: `「홍길동전」을 읽고 ㉠ <u>'홍길동'이라는 인물이 '당대의 신분 질서'와 대립하는 모습으로 그려져 있다는 것을 확인했다.</u> 저자는 ㉡ <u>의적 홍길동을 긍정적인 인물로 그리면서, 길동이 호부호형하지 못하고 자신의 능력도 발휘하지 못하는 모습을 그려 당대의 신분 질서를 부정적으로 표현했다.</u> 그런데 이 작품은 ㉢ <u>길동의 의적 활동을 그리면서도 그로 인해 사회가 혼란해지는 모습도 표현했다.</u> 그리고 ㉣ <u>길동이 율도국의 왕이 되었을 때 태평성대가 왔다고 서술한 부분에서는 왕을 중심으로 하는 당대의 신분 질서가 사회 안정에 필요하다는 의미가 들어 있는 것으로 보인다.</u> 이를 통해 ㉤ <u>「홍길동전」은 당대의 신분 질서를 비판하는 의미만 담고 있는 것이 아니라 다양한 관점에서 해석될 수 있는 작품임을 알게 되었다.</u>`,
+    choices: [
+      "㉠: 대립되어 있는 두 가지 개념의 짝을 찾아 이항 대립 구조를 확인하고 있군.",
+      "㉡: 글에서 저자가 긍정적으로 여기는 개념과 부정적으로 여기는 개념 사이의 위계를 확인하고 있군.",
+      "㉢: 글에 부정적으로 나타난 개념에 새로운 가치를 부여함으로써 저자가 설정한 위계가 절대적이지 않음을 파악하고 있군.",
+      "㉣: 글에서 저자가 말하고자 한 바와 실제로 글이 의미하고 있는 바가 어긋나는 지점을 포착하고 있군.",
+      "㉤: 글의 의미가 하나로 정해지지 않으며 글이 다양한 관점에서 해석될 수 있음을 깨닫고 있군."
+    ],
+    answer: 3,
+    intro: `[출제의도] 구체적 상황에 적용하기
+
+2문단에서 '이항 대립되는 개념들 사이에 저자가 어느 쪽의 개념을 강조하느냐에 따라 위계가 필연적으로 형성'된다고 하였다. 또한 이 위계를 파악하기 위해 '저자가 긍정적으로 여기는 개념과 부정적으로 여기는 개념 사이의 위계를 확인해야 한다'고 하였다. <보기>에서 저자는 홍길동을 '의적'이라고 표현하여 긍정적인 개념으로, 당대의 신분 질서를 '길동이 호부호형하지 못하고 자신의 능력도 발휘하지 못하'게 하는 부정적인 개념으로 대립시켜 홍길동의 행동을 강조함으로써 위계가 형성되었다는 것을 확인할 수 있다.`,
+    explanations: [
+      `㉠에서 학생이 '홍길동'이라는 인물이 '당대의 신분 질서'와 대립하는 모습으로 그려져 있다는 것을 확인한 것은, 홍길동과 당대의 신분 질서를 대립되어 있는 두 가지 개념의 짝으로 찾아 이항 대립 구조를 식별한 것이므로 적절하다.`,
+      `㉡에서 학생이 의적 홍길동을 긍정적인 인물로, 당대의 신분 질서를 부정적으로 표현되는 것을 확인한 것은, 저자가 긍정적으로 여기는 홍길동이라는 개념과 부정적으로 여기는 당대의 신분 질서라는 개념 사이의 위계를 확인한 것이므로 적절하다.`,
+      `(정답) ㉢에서 학생이 '길동의 의적 활동'으로 인해 '사회가 혼란해지는 모습도 표현'했다고 말한 것은, 학생이 글에서 저자가 긍정적인 개념으로 강조한 길동의 행동이 글에서 부정적인 개념으로 그려지는 장면을 포착하였음을 확인할 수 있다. 하지만 ㉢은 학생이 글에서 부정적으로 나타난 개념인 '당대의 신분 질서'에 새로운 가치를 부여하여 저자가 '당대의 신분 질서'가 부정적이라고 설정한 위계가 절대적이지 않다고 파악하는 활동이라고 볼 수 없으므로 적절하지 않다.`,
+      `㉣에서 학생이 길동이 율도국의 왕이 되었을 때 태평성대가 왔다고 서술한 부분을 보고, 당대의 신분 질서가 사회 안정에 필요하다는 의미가 들어 있다고 설명한 것은, 저자가 부정적으로 말하고자 한 개념인 '당대의 신분 질서'가 실제 글에서는 긍정적인 의미로 받아들여지는 지점을 포착한 것이므로 적절하다.`,
+      `㉤에서 학생이 「홍길동전」을 읽고 다양한 관점에서 해석될 수 있는 작품임을 알게 되었다고 한 것은, 해체적 읽기를 통해 글의 의미가 하나로 정해지지 않으며 다양한 관점에서 해석될 수 있음을 깨달은 것이므로 적절하다.`
+    ]
+  },
+  {
+    id: 3,
+    passageId: "P1",
+    points: 3,
+    category: "핵심 내용 파악하기",
+    stem: "[A]와 &lt;보기&gt;를 비교한 내용으로 가장 적절한 것은?",
+    boxExample: `독자가 완결된 글에 담긴 뜻을 이해하고 다시 설명하는 것을 해석이라고 한다. 글의 해석은 주관적 행위이며, 해석의 근거로 제시하는 객관적인 자료의 선택에도 주관이 개입한다. 따라서 글에는 다양한 해석이 존재할 수 있으므로, 독자는 여러 관점과 해석을 비교하고 규정함으로써 보편적인 해석에 도달하기 위해 노력해야 한다.`,
+    choices: [
+      "[A]와 달리 &lt;보기&gt;는 독자가 여러 관점과 해석을 비교할 수 없다고 본다.",
+      "[A]와 달리 &lt;보기&gt;는 독자가 보편적인 해석에 이르기 위해 노력해야 한다고 본다.",
+      "&lt;보기&gt;와 달리 [A]는 글의 의미가 고정된 것이라고 본다.",
+      "&lt;보기&gt;와 달리 [A]는 글의 해석을 주관적 행위라고 본다.",
+      "[A]와 &lt;보기&gt;는 모두, 독자가 글을 저자에 의해 완성된 결과물로 봐야 한다고 본다."
+    ],
+    answer: 2,
+    intro: `[출제의도] 핵심 내용 파악하기
+
+&lt;보기&gt;는 독자가 '보편적인 해석에 도달하기 위해 노력'해야 한다고 하였다. 이와 달리 [A]는 해체적 읽기를 하여 글은 '관점에 따라 다양한 해석이 존재함'과 같이 '저자에 의해 완성된 결과물이 아니'라는 것을 알고 의미를 확장하여 '새로운 의미를 만들어 내는 능동적인 독자로 거듭'난다고 하였다.`,
+    explanations: [
+      `[A]에서는 독자가 글을 재구성함으로써 새로운 의미를 만들어 내는 능동적인 독자가 된다고 하였을 뿐, 여러 관점과 해석을 비교할 수 없다고 보지는 않았다. 또한 &lt;보기&gt;는 독자가 여러 관점과 해석을 비교하고 규정해야 한다고 보았으므로, &lt;보기&gt;가 비교할 수 없다고 본다는 설명은 적절하지 않다.`,
+      `(정답) &lt;보기&gt;는 독자가 보편적인 해석에 도달하기 위해 노력해야 한다고 본 것과 달리, [A]는 관점에 따라 의미를 확장하여 새로운 의미를 만들어 내는 능동적인 독자가 되어야 한다고 하였으므로 적절하다.`,
+      `[A]는 글의 의미가 고정된 것이 아니라 다양하게 변할 수 있다고 보았으므로, [A]가 글의 의미를 고정된 것으로 본다는 설명은 적절하지 않다.`,
+      `&lt;보기&gt;는 해석을 '주관적 행위'라고 명시적으로 보았다. [A]가 해석을 주관적 행위라고 보았는지는 본문에서 그렇게 규정하고 있지 않으며, 오히려 &lt;보기&gt;가 주관적 행위라고 본 것이므로 '&lt;보기&gt;와 달리 [A]'라는 설명은 적절하지 않다.`,
+      `[A]는 독자를 글을 저자에 의해 완성된 결과물이 아니라 의미가 확장되는 공간으로 받아들이는 존재로 보았다. 따라서 [A]가 글을 저자에 의해 완성된 결과물로 봐야 한다고 보았다는 설명은 적절하지 않다.`
+    ]
+  },
+  {
+    id: 10,
+    passageId: "P2",
+    points: 2,
+    category: "세부 내용 이해하기",
+    stem: "윗글에 대한 이해로 적절하지 않은 것은?",
+    boxExample: "",
+    choices: [
+      "상점은 렌즈로 입사하는 여러 광선들이 수렴하는 점이다.",
+      "일차상과 이차상 사이에 맺히는 상의 대부분은 타원의 형상을 띤다.",
+      "광축은 렌즈의 중심을 지나면서 렌즈 면에 수직인 가상의 직선이다.",
+      "최소 착란원은 일차상과 이차상 사이에서 맺히는 상 중 가장 뚜렷하다.",
+      "자오면은 물체점이 주광선을 중심으로 어느 방향에 있는지를 드러낸다."
+    ],
+    answer: 5,
+    intro: `[출제의도] 사실적 정보 이해하기
+
+자오면은 '광축을 중심으로 물체점이 어느 방향에 있는지를 드러낸다'고 하였으므로, 자오면이 주광선을 중심으로 물체점이 어느 방향에 있는지를 드러낸다는 것은 적절하지 않다.`,
+    explanations: [
+      `1문단에서 '상점'은 '렌즈로 입사한 여러 광선이 굴절하여 수렴하는 점'이라고 하였으므로 적절하다.`,
+      `4문단에서 '일차상과 이차상 사이에 맺히는 상의 대부분은 타원의 형상을 띠지만'이라고 하였으므로 적절하다.`,
+      `2문단에서 '광축은 렌즈의 중심을 지나면서 렌즈 면에 수직인 가상의 직선이다'라고 하였으므로 적절하다.`,
+      `4문단에서 '최소 착란원'은 '일차상과 이차상 사이에 맺히는 상 중 가장 뚜렷하다'고 하였으므로 적절하다.`,
+      `(정답) 3문단에서 자오면은 '광축을 중심으로 물체점이 어느 방향에 있는지를 드러낸다'고 하였다. 광축을 중심으로 드러내는 것이지, 주광선을 중심으로 드러내는 것이 아니므로 적절하지 않다.`
+    ]
+  },
+  {
+    id: 11,
+    passageId: "P2",
+    points: 3,
+    category: "구체적 상황에 적용하기",
+    stem: "&lt;보기&gt;는 윗글을 이해하기 위한 학습 자료의 일부이다. 학생의 반응으로 적절하지 않은 것은? [3점]",
+    boxExample: `다음은 비점 수차가 발생한 상황을 나타낸 그림이다. A는 광축과 주광선을 포함하는 평면, B는 A와 수직이며 주광선을 포함하는 평면이다. C, D는 각각, A와 B 중 한 평면 위에 놓여 선분의 형상으로 맺히는 상을, E는 원형을 띠는 상을 가리킨다. P₀, P₁, P₂, P₃는 모두 광축과 수직인 축 위에 있으며, P₄는 광축 위에 있다. P₀에서 광축까지의 거리는 P₁에서 광축까지의 거리의 두 배이고, P₂에서 광축까지의 거리의 절반이다. 현재 물체점은 P₀에 놓여 있다.
+(단, 렌즈는 회전 대칭성을 지니며 그 외 요인은 고려하지 않는다.)
+<div style="margin:12px 0 4px;"><img src="data:image/png;base64,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" style="max-width:100%;display:block;margin:0 auto;border:1px solid #ddd;"></div>`,
+    choices: [
+      "물체점을 P₁으로 옮긴다면, E는 물체점이 P₀에 있었을 때보다 더 뚜렷하겠군.",
+      "물체점을 P₂로 옮긴다면, C에서 D까지의 거리는 물체점이 P₀에 있었을 때의 4배가 되겠군.",
+      "물체점을 P₃으로 옮겼을 때 C의 길이가 길어졌다면, P₀에서 광축까지의 거리가 P₃에서 광축까지의 거리보다 길겠군.",
+      "P₃에서 광축까지의 거리가 P₀에서 광축까지의 거리와 같다면, 물체점을 P₃으로 옮겼을 때 E의 크기는 변하지 않겠군.",
+      "물체점이 P₀에 있을 때와 달리 P₄에 있다면, 주광선을 포함하는 평면 위에 있는 광선들의 입사 양상은 어떤 평면에서든 동일하겠군."
+    ],
+    answer: 3,
+    intro: `[출제의도] 구체적 상황에 적용하기
+
+3문단에서 '자오면은 광축과 주광선을 포함하는 단 하나의 평면이며, 광축을 중심으로 물체점이 어느 방향에 있는지를 드러낸다'고 하였다. A는 자오면이고 B는 구결면이다. C는 자오면 위에 놓여 주광선과 수직인 이차상, D는 구결면 위에 놓여 주광선과 수직인 일차상이다. E는 최소 착란원이다.`,
+    explanations: [
+      `P₁에서 광축까지의 거리는 P₀의 절반이므로 비점 격차가 작아진다. 비점 격차가 작을수록 최소 착란원(E)의 크기가 작아지면서 더 뚜렷해진다. 따라서 E는 더 뚜렷해지겠군은 적절하다.`,
+      `P₂에서 광축까지의 거리는 P₀의 두 배이므로 비점 격차는 거리의 제곱에 비례하여 4배가 된다. 따라서 C에서 D까지의 거리(비점 격차)도 4배가 되므로 적절하다.`,
+      `(정답) C는 이차상이다. 4문단에서 비점 격차가 커질수록 일차상(D)과 이차상(C)의 길이는 길어진다고 하였다. C의 길이가 길어졌다면 비점 격차가 커진 것이므로, P₃에서 광축까지의 거리가 P₀보다 멀어야 한다. 따라서 P₀에서 광축까지의 거리가 P₃에서 광축까지의 거리보다 길다는 것은 적절하지 않다.`,
+      `P₃에서 광축까지의 거리가 P₀와 같다면 비점 격차도 같고, 따라서 E(최소 착란원)의 크기도 변하지 않는다. 적절하다.`,
+      `P₄는 광축 위에 있으므로 물체점이 P₄에 있으면 주광선이 광축을 따라 입사한다. 이 경우 광선 다발은 광축을 중심으로 회전 대칭성을 가지며, 주광선을 포함하는 모든 평면에서 광선들의 입사 양상이 동일해진다. 따라서 적절하다.`
+    ]
+  },
+  {
+    id: 12,
+    passageId: "P2",
+    points: 2,
+    category: "추론하기",
+    stem: "윗글을 참고할 때, ㉠의 이유로 가장 적절한 것은?",
+    boxExample: "",
+    choices: [
+      "일차상이 이차상보다 렌즈의 중심에서 더 멀리 맺히기 때문이다.",
+      "물체점으로부터 렌즈로 입사한 광선들의 집합이 원뿔 형상을 띠기 때문이다.",
+      "서로 수직 관계인 구결면과 자오면 위에 각각 일차상과 이차상이 놓이기 때문이다.",
+      "물체점의 위치가 변경되면 주광선 또한 달라져 자오면과 구결면이 달라지기 때문이다.",
+      "렌즈가 일차상을 기준으로 회전하였을 때 원래의 형태와 수직을 이루는 성질을 띠게 되기 때문이다."
+    ],
+    answer: 3,
+    intro: `[출제의도] 내용 추론하기
+
+3문단에서 '자오면은 광축과 주광선을 포함'하는 면이라고 하였고, '구결면은 자오면과 수직인 평면으로, 광축을 포함하지 않으며 주광선을 포함하는 평면이다'라고 하였다. 4문단에서 '일차상은 구결면 위에 놓여 주광선과 수직 관계를 이루고, 이차상은 자오면 위에 놓여 주광선과 수직 관계를 이룬다. 이때 일차상과 이차상은 서로 수직이다'라고 하였다. 구결면과 자오면이 서로 수직이고, 각각의 면 위에 놓인 일차상과 이차상도 서로 수직이 되는 것이다.`,
+    explanations: [
+      `3문단에서 자오 상점이 구결 상점보다 렌즈의 중심까지의 거리가 더 가깝다고 하였다. 일차상은 구결 상점에서, 이차상은 자오 상점에서 맺히므로, 일차상이 이차상보다 렌즈 중심에서 더 멀리 맺힌다. 따라서 일차상이 이차상보다 렌즈 중심에서 더 멀리 맺힌다는 것은 맞지만, 이것이 일차상과 이차상이 서로 수직인 이유가 되지는 않으므로 적절하지 않다.`,
+      `광선 다발이 원뿔 형상을 띠는 것은 광선 다발의 일반적인 특성으로, 일차상과 이차상이 서로 수직인 이유로 적절하지 않다.`,
+      `(정답) 자오면과 구결면이 서로 수직이고, 일차상은 구결면 위에, 이차상은 자오면 위에 놓이므로 일차상과 이차상은 서로 수직이 된다. 적절하다.`,
+      `물체점의 위치가 변경되면 자오면과 구결면이 달라질 수 있으나, 이것은 일차상과 이차상이 수직인 이유와 직접적 관련이 없다. 적절하지 않다.`,
+      `렌즈는 '회전 대칭성'을 지닌다고 하였으나, 이 성질이 일차상과 이차상이 서로 수직인 이유는 아니다. 적절하지 않다.`
+    ]
+  },
+  {
+    id: 13,
+    passageId: "P2",
+    points: 2,
+    category: "어휘의 문맥적 의미 파악하기",
+    stem: "문맥상 ⓐ ~ ⓔ와 바꿔 쓰기에 적절하지 않은 것은?",
+    boxExample: "",
+    choices: [
+      "ⓐ: 생겨난다",
+      "ⓑ: 이울런다",
+      "ⓒ: 나아가는",
+      "ⓓ: 똑같다",
+      "ⓔ: 비슷하며"
+    ],
+    answer: 2,
+    intro: `[출제의도] 어휘의 문맥적 의미 파악하기
+
+'해당한다'는 '어떤 범위나 조건 따위에 바로 들어맞는다'는 의미로 사용되고 있으므로, '어울리다'의 의미인 '이울런다'는 적절하지 않다.`,
+    explanations: [
+      `'발생한다'는 '어떤 일이나 사물이 생겨나는 것'이므로 '생겨난다'는 적절하다.`,
+      `(정답) '해당한다'는 '어떤 범위나 조건 따위에 바로 들어맞는다'는 의미이다. '이울런다'는 '어울린다'의 의미로 서로 조화롭게 잘 조화되다는 의미이므로 적절하지 않다.`,
+      `'향하는'은 '어떤 방향이나 목적을 향해 나아가는'의 의미로 '나아가는'은 적절하다.`,
+      `'동일하다'는 '두 사물이 다르지 않고 같다'의 의미로 '똑같다'는 적절하다.`,
+      `'유사하며'는 '서로 비슷하다'의 의미이므로 '비슷하며'는 적절하다.`
+    ]
+  },
+  {
+    id: 14,
+    passageId: "P3",
+    points: 2,
+    category: "세부 내용 이해하기",
+    stem: "윗글을 통해 해결할 수 있는 질문으로 가장 적절한 것은?",
+    boxExample: "",
+    choices: [
+      "건물을 분양하기 위한 자격 조건은 무엇일까?",
+      "건물에 대한 소유권을 등기하는 절차는 무엇일까?",
+      "공용부분에서 수익을 얻기 위한 방안은 무엇일까?",
+      "건물의 부속물로서 공용부분에 해당하는 예는 무엇일까?",
+      "전유부분을 처분하기 위해 필요한 의결권의 종류는 무엇일까?"
+    ],
+    answer: 4,
+    intro: `[출제의도] 세부 내용 이해하기
+
+공용부분에는 '복도, 옥상, 공동 현관 등의 건물 부분과, 엘리베이터와 같은 건물의 부속물이 있다'에서 건물의 부속물로서 공용부분에 해당하는 예가 엘리베이터임을 알 수 있으므로 적절하다.`,
+    explanations: [
+      `건물을 분양하기 위한 자격 조건은 글에서 확인할 수 없다. 구분 행위를 하는 주체가 '건물을 분양하는 사람'이라고만 언급될 뿐 자격 조건은 나오지 않는다.`,
+      `건물에 대한 소유권을 등기하는 절차에 대해서는 글에서 확인할 수 없다. 다만 구분 행위의 방식으로 등기가 언급될 뿐이다.`,
+      `공용부분에서 수익을 얻기 위한 방안은 글에서 확인할 수 없다. 공용부분으로 인한 수익이 지분 비율에 따른다는 내용만 있다.`,
+      `(정답) 공용부분에는 '복도, 옥상, 공동 현관 등의 건물 부분과, 엘리베이터와 같은 건물의 부속물이 있다'고 하였으므로, 엘리베이터가 건물의 부속물로서 공용부분에 해당하는 예임을 알 수 있다.`,
+      `전유부분을 처분하기 위해 필요한 의결권의 종류는 글에서 확인할 수 없다. 구분소유자가 전유부분을 '자유롭게 사용하고 처분할 수는 있지만'이라고만 언급될 뿐이다.`
+    ]
+  },
+  {
+    id: 15,
+    passageId: "P3",
+    points: 2,
+    category: "핵심 내용 이해하기",
+    stem: "<u>구분소유권</u>에 대한 설명으로 적절하지 않은 것은?",
+    boxExample: "",
+    choices: [
+      "구분소유권이 성립하기 위해서는 구분 행위가 필요하다.",
+      "구분소유권은 전유부분을 개별 소유의 대상으로 삼는다.",
+      "구분소유권은 집합건물법의 한계로 인해 등장하게 되었다.",
+      "구분소유권의 주체는 전유부분에 대해 권리를 행사하는 데 제약이 있다.",
+      "구분소유권을 가지면 전유부분을 소유함으로써 자동으로 공용부분에 대한 지분을 얻게 된다."
+    ],
+    answer: 3,
+    intro: `[출제의도] 핵심 내용 이해하기
+
+집합건물법과 구분소유권의 관계에 대해 서술된 부분을 확인한다. 집합건물법이 한계에 대해서는 언급하고 있지 않다.`,
+    explanations: [
+      `2문단에서 '구분소유권이 성립하기 위해서는 구분 행위가 필요하다'고 하였으므로 적절하다.`,
+      `2문단에서 '구분소유권은 전유부분을 개별 소유의 대상으로 삼는 소유권을 의미한다'고 하였으므로 적절하다.`,
+      `(정답) 1문단에서 '집합건물법이 제정되면서 구분소유권이라는 권리를 통해 집합건물 내의 다양한 권리관계를 명료하게 하여 공동생활을 합리적으로 규율할 수 있게 되었다'고 하였다. 구분소유권이 집합건물법의 한계로 인해 등장했다는 표현은 적절하지 않으며, 집합건물법을 통해 구분소유권이 도입된 것이다.`,
+      `4문단에서 '구분소유자는 전유부분을 자유롭게 사용하고 처분할 수는 있지만 건물의 관리 및 사용에 있어서 단체 규율에 의해 제약을 받는다'고 하였으므로 적절하다.`,
+      `3문단에서 '구분소유자가 전유부분을 소유함으로써 자동으로 얻게 되는 권리가 바로 공용부분에 대한 지분이다'라고 하였으므로 적절하다.`
+    ]
+  },
+  {
+    id: 16,
+    passageId: "P3",
+    points: 3,
+    category: "구체적 상황에 적용하기",
+    stem: "윗글을 바탕으로 &lt;보기&gt;에 대해 이해한 반응으로 적절하지 않은 것은? [3점]",
+    boxExample: `○○ 아파트는 고층일수록 각 호실의 전유부분 면적이 더 넓다. 관리단은 주민 복지를 위해 규약을 통해 5층의 한 호실을 공동 휴게 공간으로 지정하였다. 3층 301호 소유자 갑은 공동 휴게 공간 내부에 철거하기 쉬운 가림막을 설치하고 복도로 연결되는 새로운 출입문을 내어 개인 작업실을 만들고 싶어 했다.
+5층 501호 소유자 을은 우연히 공동 현관의 유리가 깨져 있는 것을 발견하였다. 을은 위험하다고 판단하여 깨진 유리를 급하게 새것으로 갈아 끼우고 관리 사무실에 알렸다. 또한 을은 자신의 집 천장에서 누수를 발견하고 기술자를 불러 확인하였으나 정확한 원인을 알 수 없었다.
+(단, 다른 상황은 고려하지 않는다.)`,
+    choices: [
+      "공동 휴게 공간으로 사용한 호실은 공용부분임을 등기했겠군.",
+      "공동 휴게 공간을 관리하기 위해 부담해야 하는 비용은 갑보다 을이 더 크겠군.",
+      "을은 누수로 인해 발생한 하자를 수리하는 비용을 관리단에 청구할 수 있겠군.",
+      "갑이 만들고 싶어 한 개인 작업실은 구조상 독립성은 있지만 이용상 독립성이 없겠군.",
+      "깨진 유리를 교체한 을의 행위는 훼손된 공용부분을 복구하는 보존행위로 볼 수 있겠군."
+    ],
+    answer: 4,
+    intro: `[출제의도] 구체적 상황에 적용하기
+
+구조상 독립성이란 각 건물 부분이 '쉽게 이동되거나 제거될 수 없는 부분에 의해, 공용부분이나 다른 구분소유자들의 전유부분과 차단된 것'을 말한다. '철거하기 쉬운 가림막'을 설치하고 복도로 연결되는 새 출입문을 낸 개인 작업실은 '쉽게 이동되거나 제거될 수 있기' 때문에 구조상 독립성을 갖추지 못한 것이다. 따라서 구조상 독립성은 있다는 설명은 적절하지 않다.`,
+    explanations: [
+      `3문단에서 '전유부분이 될 수 있는 공간도 규약을 통해 공용부분으로 지정하여 노인정, 공동 휴게 공간 등으로 사용하는 것도 가능하다. 단, 이때는 공용부분이라는 것을 반드시 등기해야 한다'고 하였으므로 적절하다.`,
+      `3문단에서 '공용부분의 지분은 해당 구분소유자의 전유부분의 면적이 전체 전유부분의 면적에서 차지하는 비율로 결정된다'고 하였다. 고층일수록 면적이 넓으므로 5층의 을이 3층의 갑보다 지분이 크고 비용 부담도 더 크다. 적절하다.`,
+      `5문단에서 '하자의 원인이 불분명할 때에는 공용부분의 하자로 여기고 구분소유자의 공동책임으로 보아 관리단에 수리 비용을 청구할 수 있다'고 하였으므로, 원인을 알 수 없는 을의 누수 비용을 관리단에 청구할 수 있다. 적절하다.`,
+      `(정답) 철거하기 쉬운 가림막을 설치한 것은 '쉽게 이동되거나 제거될 수 없는 부분'에 의한 차단이 아니므로 구조상 독립성을 갖추지 못한다. 따라서 구조상 독립성은 있다는 설명은 적절하지 않다.`,
+      `5문단에서 '안전 등을 사유로 긴급한 조치가 필요한 경우에는 구분소유자 개인이 단독으로 훼손된 공용부분을 복구하는 보존행위를 할 수도 있다'고 하였으므로, 을의 유리 교체 행위는 보존행위로 볼 수 있다. 적절하다.`
+    ]
+  },
+  {
+    id: 17,
+    passageId: "P3",
+    points: 2,
+    category: "핵심 내용 이해하기",
+    stem: "[A]에 대한 이해로 적절하지 않은 것은?",
+    boxExample: "",
+    choices: [
+      "관리인은 구분소유자 중에서 선출해야 한다.",
+      "구분소유자 전원을 대상으로 관리단을 구성한다.",
+      "관리단 구성원이 특정 인원 이상일 때는 관리인을 선임해야 한다.",
+      "관리단은 집합건물을 공동으로 관리하기 위한 최종 의사결정의 주체이다.",
+      "관리단에서 적법하게 결의된 사항은 결의에 반대한 구분소유자에 대해서도 효력을 미칠 수 있다."
+    ],
+    answer: 1,
+    intro: `[출제의도] 핵심 내용 이해하기
+
+[A]에서 '관리인은 구분소유자일 필요가 없다'고 하였으므로 적절하지 않다.`,
+    explanations: [
+      `(정답) [A]에서 '관리인은 구분소유자일 필요가 없으며'라고 하였으므로, 관리인이 구분소유자 중에서 선출해야 한다는 설명은 적절하지 않다.`,
+      `[A]에서 '구분소유자 전원을 구성원으로 하여 별다른 절차가 없어도 설립된다'고 하였으므로, 구분소유자 전원을 대상으로 관리단을 구성한다는 설명은 적절하다.`,
+      `[A]에서 '구분소유자가 10인 이상일 때는 관리인을 선임해야 한다'고 하였으므로 적절하다.`,
+      `[A]에서 '관리단은 집합건물의 공동 관리를 위한 최종 의사결정의 주체이다'라고 하였으므로 적절하다.`,
+      `[A]에서 '관리단에서 적법하게 결의된 사항은 그 결의에 반대한 구분소유자에 대해서도 효력을 미칠 수 있다'고 하였으므로 적절하다.`
+    ]
+  },
+  {
+    id: 18,
+    passageId: "P4",
+    points: 2,
+    category: "세부 내용 이해하기",
+    stem: "윗글에 대한 이해로 적절하지 않은 것은?",
+    boxExample: "",
+    choices: [
+      "회사는 구정 대목을 앞두고 있어 공급이 달리는 상황이었다.",
+      "사환아이는 영하의 추위 속에서 떨기만 하다가 일종의 안도감을 느꼈다.",
+      "영희는 타과 소속의 사환애들이 한꺼번에 나타나자 그들을 밀쳐 세웠다.",
+      "사장은 외유 기간 동안 일정이 바빠서 본가로 국제전화 한 통 할 기회가 없었다.",
+      "회사에는 한비서와 부사장의 사임에 대한 소문이 돌게 되었다."
+    ],
+    answer: 3,
+    intro: `[출제의도] 세부 내용 이해하기
+
+'말을 해 놓으려다 말고 멈추어 섰다. 타과 소속의 사환애들 서넛이 한꺼번에 나타났기 때문이었다'에서 사환아이가 타과 소속의 사환애들을 밀쳐 세운 것이 아니라 그들을 보고 멈추어 선 것임을 알 수 있다.`,
+    explanations: [
+      `'지금은 구정 대목을 눈앞에 두고 있는 때라 공급이 엄청나게 달리는 판인 것이다'에서 알 수 있으므로 적절하다.`,
+      `'철제 대문과 ~ 안도감 같은 것이 느껴져 왔다'에서 알 수 있으므로 적절하다.`,
+      `(정답) '말을 떼 놓으려다 말고 멈추어 섰다. 타과 소속의 사환애들 서넛이 한꺼번에 나타났기 때문이었다'에서 영희가 타과 소속의 사환애들을 밀쳐 세운 것이 아니므로 적절하지 않다.`,
+      `'일정이 너무나 바빴기 때문에 외유 기간 동안 본가로도 국제전화 한 통 할 기회가 없었다'에서 알 수 있으므로 적절하다.`,
+      `'회사에는 한비서와 부사장의 인책 사임의 소문과 더불어'에서 알 수 있으므로 적절하다.`
+    ]
+  },
+  {
+    id: 19,
+    passageId: "P4",
+    points: 2,
+    category: "서술 방식 파악하기",
+    stem: "㉠ ~ ㉤의 서술 방식에 대한 설명으로 적절하지 않은 것은?",
+    boxExample: "",
+    choices: [
+      "㉠: 특정 인물의 생각을 직접적으로 드러내어 서술하고 있다.",
+      "㉡: 특정 인물에 대한 정보를 제시하고 그 인물이 보일 법한 행동을 짐작하여 서술하고 있다.",
+      "㉢: 특정 인물의 생각을 서술자의 관점으로 평가하는 방식으로 서술하고 있다.",
+      "㉣: 특정 인물의 행동들을 순차적으로 서술하고 있다.",
+      "㉤: 상황에 대한 인물들의 반응을 관용 표현을 활용하여 서술하고 있다."
+    ],
+    answer: 2,
+    intro: `[출제의도] 서술 방식 파악하기
+
+㉡은 특정 인물인 '사환아이'의 생각을 직접적으로 드러내고 있을 뿐, 특정 인물의 생각을 사술자의 관점으로 평가하는 방식으로 서술한 것은 아니므로 적절하지 않다.`,
+    explanations: [
+      `㉠은 '도무지 무슨 영문인지 알 수가 없었다'로 사환아이의 생각을 직접적으로 드러내어 서술하고 있으므로 적절하다.`,
+      `(정답) ㉡은 사환아이가 '공고문을 뜯어이해 읽었다'는 행동을 서술하는 것으로, 특정 인물에 대한 정보를 제시하고 그 인물이 보일 법한 행동을 짐작하여 서술한 것이 아니다. 적절하지 않다.`,
+      `㉢은 '해묵은 천식을 앓고 있는 그 늙다리 총무부장'이라는 표현에서 서술자의 관점으로 인물을 평가하는 방식으로 서술하고 있으므로 적절하다.`,
+      `㉣은 '그러고는 오랜만에 영화라도', '명자나 수연일 불러내서 거길 가야지' 등의 행동들을 순차적으로 서술하고 있으므로 적절하다.`,
+      `㉤은 '경황없이 통화를 끝낸 그는 식은땀이 촉촉하게 배어난 손으로'에서 관용 표현을 활용하여 서술하고 있으므로 적절하다.`
+    ]
+  },
+  {
+    id: 20,
+    passageId: "P4",
+    points: 2,
+    category: "소재의 기능 파악하기",
+    stem: "㉥와 ㉦에 대한 설명으로 가장 적절한 것은?",
+    boxExample: "",
+    choices: [
+      "㉥에 담긴 정보는 ㉦에 잘못된 정보가 기록되는 원인이 된다.",
+      "㉦는 ㉥으로 인해 발생한 문제의 책임을 규명하기 위해 만들어진 것이다.",
+      "㉥의 존재는 누구나 예상할 수 있었지만, ㉦의 존재는 누구도 예상할 수 없었다.",
+      "㉦가 작성된 시점은 ㉥가 집단적으로 공유되는 시점보다 앞선다.",
+      "㉦는 인물 간 갈등을 표면화하는 계기가 되고, ㉥는 인물 간 갈등을 해소하는 계기가 된다."
+    ],
+    answer: 4,
+    intro: `[출제의도] 소재의 기능 파악하기
+
+㉥메모는 수위장 김씨가 통화를 끝낸 뒤 작성하여 한비서에게 전달한 것이고, ㉦('이 대목에서만은 다들 쓴 입맛만 다셨을 따름이었다')는 사건의 전말이 밝혀진 후 직원들의 반응을 나타낸 것이다. ㉦가 작성(기록)된 시점은 그날 저녁의 소문이 퍼진 시점이고, ㉥는 새벽녘에 작성되었다. 따라서 ㉦보다 ㉥가 먼저 작성되었다.`,
+    explanations: [
+      `㉥메모에 담긴 정보('내가 귀국할 때까지 모든 일을 중지할 것')는 수위장 김씨가 잘못 전달한 것이며, 이것이 공고문으로 이어졌다. ㉦는 사건의 전말이 밝혀진 후 직원들의 반응을 나타낸 것으로 ㉥가 잘못된 정보를 기록하는 원인은 아니다. 적절하지 않다.`,
+      `㉦는 사건의 전말이 밝혀진 후 직원들의 씁쓸한 반응을 나타낸 것으로, 책임 규명을 위해 만들어진 것이 아니다. 적절하지 않다.`,
+      `㉥의 존재나 ㉦의 존재 모두 이미 밝혀진 사실이며, 누구나 예상했는지 여부는 글에서 확인할 수 없다. 적절하지 않다.`,
+      `(정답) ㉦는 사건의 전말이 밝혀진 저녁 이후의 반응이고, ㉥메모는 새벽녘에 작성되었다. 따라서 ㉦가 기록된 시점이 ㉥가 집단적으로 공유되는 시점보다 앞선다는 것은 적절하다.`,
+      `㉦는 인물 간 갈등을 표면화하는 것이 아니라 사태에 대한 씁쓸한 반응을 나타내며, ㉥는 갈등을 해소하는 것이 아니라 오히려 혼란의 원인이 된다. 적절하지 않다.`
+    ]
+  },
+  {
+    id: 21,
+    passageId: "P4",
+    points: 3,
+    category: "외적 준거를 바탕으로 작품 감상하기",
+    stem: "&lt;보기&gt;를 참고하여 윗글을 감상한 내용으로 적절하지 않은 것은? [3점]",
+    boxExample: `이 작품은 사소한 착오로 발생한 사건에 대한 노동자들의 반응을 통해 산업화 시대의 단면을 보여 준다. 부당한 현실에 익숙해진 채 살아가던 노동자들이 사건을 통해 보이는 문제의식의 차이는 불안정한 노동 현실을 사실적으로 드러낸다. 또한 이 작품은 직면한 위기를 해결하기 위한 기업의 대처와 이에 대한 노동자들의 심리적 동요를 재현함으로써 산업화 시대의 취약한 기업 구조의 실상을 드러낸다.`,
+    choices: [
+      "'귀꼬리만한 사환 봉급'마저 '에누리하여 지급'받았던 '사환아이'가 '제대로 난방도 되지 않은 사무실'에서 일하고 있는 것에서, 부당한 노동 환경에 처해 있는 노동자의 현실을 엿볼 수 있군.",
+      "'사환에'가 '돌연한 사태'를 '그다지 해로울 게 없다'고 생각하며 '친구들이나 죄 순방해 보'기로 하는 것에서, 당면한 사건에 대하여 문제의식이 부족한 노동자의 모습을 엿볼 수 있군.",
+      "'남자 사환에'가 '당분간 조업'이 '중단'된 상황을 '휴가 같은 게 아니'라 '결국 회사 문을 처닫는단 소리'로 이해하는 것에서, 불안정한 노동 현실에 대한 노동자의 위기의식을 엿볼 수 있군.",
+      "'숙직 사령인 한비서'가 '통화를 할 수 없는 상태'라 '수위장 김씨'가 '스스로 비서 행세'를 하며 통화한 것에서, 기업이 직면한 위기에 직접 대응할 수밖에 없는 노동자의 모습을 엿볼 수 있군.",
+      "회사가 '정상 업무를 한다고 공시'된 상황에도 '전사원들'이 '실업의 위기'에 대하여 생각하는 것에서, 취약한 기업 구조로 인한 노동자들의 불안감을 엿볼 수 있군."
+    ],
+    answer: 4,
+    intro: `[출제의도] 외적 준거를 바탕으로 작품 감상하기
+
+'숙직 사령인 한비서'가 통화를 할 수 없는 상태여서 '수위장 김씨'가 스스로 비서 행세를 하며 통화한 것은, 기업이 직면한 위기에 기업이 직접 대응한 것이 아니라 수위장이 상황에 떠밀려 어쩔 수 없이 대처한 것이다. 기업의 대처와 관련된 내용으로 보기 어렵고, 오히려 산업화 시대의 취약한 기업 구조와 관련된 내용이다.`,
+    explanations: [
+      `'귀꼬리만한 사환 봉급'마저 '에누리하여 지급'받으며 '제대로 난방도 되지 않은 사무실'에서 일하는 것에서 부당한 노동 환경에 처한 노동자의 현실을 엿볼 수 있으므로 적절하다.`,
+      `'사환에'가 '돌연한 사태'를 '그다지 해로울 게 없다'며 친구들을 만나러 가려는 것에서 당면한 사건에 대한 문제의식이 부족한 노동자의 모습을 엿볼 수 있으므로 적절하다.`,
+      `'남자 사환에'가 조업 중단을 '회사 문을 처닫는단 소리'로 이해하는 것에서 불안정한 노동 현실에 대한 위기의식을 엿볼 수 있으므로 적절하다.`,
+      `(정답) 수위장 김씨가 스스로 비서 행세를 한 것은 기업이 위기에 직접 대응한 것이 아니라, 한비서가 통화 불능 상태인 상황에서 수위장이 어쩔 수 없이 대처한 것이다. 기업의 대처로 보기 어렵다.`,
+      `'정상 업무를 한다고 공시'된 상황에서도 '전사원들'이 '실업의 위기'를 걱정하는 것에서 취약한 기업 구조로 인한 노동자들의 불안감을 엿볼 수 있으므로 적절하다.`
+    ]
+  }
+];
+
+
+
+/* ========================================================================= */
+
+const userAnswers  = {};
+const checkLog     = {};
+let graded         = false;
+let submittedAt    = null;
+let startTime      = Date.now();
+let currentIdx     = 0;  // 현재 보고 있는 문항 인덱스
+
+// 지문별 시작 시간 추적
+const passageTimes = {};   // { passageId: 시작 timestamp }
+const passageElapsed = {}; // { passageId: 누적 ms }
+let lastPassageId  = null;
+
+function initPassageTimes() {
+  const firstQ = questions[0];
+  if (firstQ && firstQ.passageId) {
+    lastPassageId = firstQ.passageId;
+    passageTimes[firstQ.passageId] = Date.now();
+  }
+}
+
+function switchPassageTimer(newPassageId) {
+  if (lastPassageId && lastPassageId !== newPassageId) {
+    // 이전 지문 시간 누적
+    const elapsed = Date.now() - (passageTimes[lastPassageId] || Date.now());
+    passageElapsed[lastPassageId] = (passageElapsed[lastPassageId] || 0) + elapsed;
+    // 새 지문 시작
+    passageTimes[newPassageId] = Date.now();
+    lastPassageId = newPassageId;
+  }
+}
+
+/* ─── 렌더링 ─── */
+
+function renderPassage(passageId) {
+  const panel = document.getElementById('passagePanel');
+  if (!passageId) {
+    panel.innerHTML = '';
+    return;
+  }
+  const p = passages.find(x => x.id === passageId);
+  if (!p) { panel.innerHTML = ''; return; }
+  panel.innerHTML = `
+    <div class="passage-range">[${p.range}]</div>
+    <div class="passage-source">${p.source}</div>
+    <div class="passage-text">${p.text}</div>
+  `;
+  panel.scrollTop = 0;
+}
+
+function renderQuestion(idx) {
+  const q = questions[idx];
+  if (!q) return;
+
+  // 지문 전환 감지
+  if (q.passageId && q.passageId !== lastPassageId) {
+    switchPassageTimer(q.passageId);
+  }
+  renderPassage(q.passageId);
+
+  const panel = document.getElementById('questionPanel');
+  panel.innerHTML = buildQuestionHTML(q);
+
+  // 채점 모드 클래스
+  if (graded) {
+    panel.classList.add('graded-mode');
+    applyGradeStyle(q, panel);
+  } else {
+    panel.classList.remove('graded-mode');
+  }
+
+  attachChoiceHandlers(q);
+  updateNav();
+  panel.scrollTop = 0;
+}
+
+function buildQuestionHTML(q) {
+  const isGraded = graded;
+  const userAns  = userAnswers[q.id];
+
+  // 선지별 해설
+  // ── 채점 마크 SVG ──
+  // 맞힌 문항: 문항번호를 감싸는 빨간 타원 ○
+  const SVG_CIRCLE = `<span style="position:relative;display:inline-block;vertical-align:middle;margin-left:-2px;">
+    <svg viewBox="0 0 54 54" width="54" height="54" fill="none" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;">
+      <ellipse cx="27" cy="27" rx="22" ry="20"
+        stroke="#c0392b" stroke-width="3.5" stroke-linecap="round"
+        style="transform-origin:27px 27px;transform:rotate(-8deg) scaleX(1.1) scaleY(0.95)"/>
+    </svg>
+  </span>`;
+
+  // 틀린 문항: 문항번호 위에 큰 X
+  const SVG_X = `<span style="position:relative;display:inline-block;vertical-align:middle;margin-left:-2px;">
+    <svg viewBox="0 0 54 54" width="54" height="54" fill="none" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;">
+      <line x1="10" y1="10" x2="44" y2="44" stroke="#c0392b" stroke-width="5" stroke-linecap="round"/>
+      <line x1="44" y1="10" x2="10" y2="44" stroke="#c0392b" stroke-width="5" stroke-linecap="round"/>
+    </svg>
+  </span>`;
+
+  // 정답 선지 왼쪽 체크(✓)
+  const SVG_CHECK_LEFT = `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" style="flex-shrink:0;margin-right:4px;margin-top:3px;">
+    <polyline points="3,13 9,19 21,7" stroke="#c0392b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`;
+
+  // 문항 번호 옆 마크 (번호를 감싸는 위치로)
+  const qNumMark = isGraded
+    ? (userAns === String(q.answer) ? SVG_CIRCLE : SVG_X)
+    : '';
+
+  const choiceRows = q.choices.map((text, idx) => {
+    const num     = idx + 1;
+    const circled = ["①","②","③","④","⑤"][idx];
+    const expText = q.explanations ? (q.explanations[idx] || '') : '';
+    const isAnswer = isGraded && num === q.answer;
+
+    let choiceCls = 'choice';
+    if (!isGraded && userAns === String(num)) choiceCls += ' selected';
+
+    // 정답 선지: 체크를 num-btn 왼쪽에 삽입
+    const numBtnHtml = isAnswer
+      ? `${SVG_CHECK_LEFT}<div class="num-btn">${circled}</div>`
+      : `<div class="num-btn">${circled}</div>`;
+
+    return `
+      <div class="choice-row">
+        <div class="${choiceCls}" data-qid="${q.id}" data-num="${num}">
+          ${numBtnHtml}
+          <div class="choice-text">${text}</div>
+        </div>
+        ${expText ? `<div class="explanation" id="exp-${q.id}-${num}">
+          <span class="exp-label">${circled} 해설</span>${expText}
+        </div>` : ''}
+      </div>`;
+  }).join('');
+
+  const boxHtml  = q.boxExample ? `
+    <div class="box-example">
+      <div class="box-label">보 기</div>
+      ${q.boxExample}
+    </div>` : '';
+
+  const introHtml = ''; // 해설 개요 자동 표시 없음
+  const hintHtml  = `<div class="hint-text">선택지를 누르면 그 선지 해설이 펼쳐집니다.</div>`;
+
+  return `
+    <div class="q-number" style="position:relative;display:inline-flex;align-items:center;">${q.id}.${qNumMark} <span class="q-points" style="margin-left:6px;">[${q.points}점]</span></div>
+    <div class="q-stem">${q.stem}</div>
+    ${boxHtml}
+    ${introHtml}
+    ${hintHtml}
+    <div class="choices">${choiceRows}</div>
+  `;
+}
+
+function applyGradeStyle(q, panel) {
+  const userAns = userAnswers[q.id];
+  panel.querySelectorAll('.choice').forEach(el => {
+    const num = el.dataset.num;
+    if (num === String(q.answer)) el.classList.add('is-answer');
+    if (userAns && num === String(userAns) && num !== String(q.answer)) {
+      el.classList.add('is-wrong-pick');
+    }
+    if (checkLog[q.id] && checkLog[q.id].has(num)) {
+      el.classList.add('checked-by-student');
+    }
+  });
+}
+
+function attachChoiceHandlers(q) {
+  document.querySelectorAll('.choice').forEach(el => {
+    el.addEventListener('click', () => {
+      if (!graded) {
+        // 풀이 단계: 답 선택
+        const qid = el.dataset.qid;
+        const num = el.dataset.num;
+        userAnswers[qid] = num;
+        document.querySelectorAll(`.choice[data-qid="${qid}"]`).forEach(c => c.classList.remove('selected'));
+        el.classList.add('selected');
+        updateProgress();
+      } else {
+        // 채점 후: 해설 토글 + 로그
+        const qid = el.dataset.qid;
+        const num = el.dataset.num;
+        const expEl = document.getElementById(`exp-${qid}-${num}`);
+        if (expEl) expEl.classList.toggle('is-open');
+        el.classList.add('checked-by-student');
+        if (!checkLog[qid]) checkLog[qid] = new Set();
+        checkLog[qid].add(num);
+      }
+    });
+  });
+}
+
+/* ─── 네비게이션 ─── */
+
+function movePrev() {
+  if (currentIdx > 0) {
+    const nextQ = questions[currentIdx - 1];
+    const curQ  = questions[currentIdx];
+    if (!graded && nextQ.passageId !== curQ.passageId) {
+      const p = passages.find(x => x.id === nextQ.passageId);
+      const rangeText = p ? `[${p.range}]` : '';
+      if (!confirm(`이전 지문 ${rangeText}으로 이동합니다.\n확인을 누르면 이전 지문으로 돌아갑니다.`)) return;
+    }
+    currentIdx--;
+    renderQuestion(currentIdx);
+  }
+}
+
+function moveNext() {
+  if (currentIdx < questions.length - 1) {
+    const nextQ = questions[currentIdx + 1];
+    const curQ  = questions[currentIdx];
+    if (!graded && nextQ.passageId !== curQ.passageId) {
+      const p = passages.find(x => x.id === nextQ.passageId);
+      const rangeText = p ? `[${p.range}]` : '';
+      if (!confirm(`다음 지문 ${rangeText}으로 넘어갑니다.\n확인을 누르면 새 지문이 시작됩니다.`)) return;
+    }
+    currentIdx++;
+    renderQuestion(currentIdx);
+  }
+}
+
+function updateNav() {
+  const total    = questions.length;
+  const isFirst  = currentIdx === 0;
+  const isLast   = currentIdx === total - 1;
+
+  document.getElementById('qIndicator').textContent = `${currentIdx + 1} / ${total}`;
+
+  const prevBtn   = document.getElementById('prevBtn');
+  const nextBtn   = document.getElementById('nextBtn');
+  const submitBtn = document.getElementById('submitBtn');
+
+  if (graded) {
+    // 채점 후: 이전/다음만 (제출 이미 숨겨짐)
+    prevBtn.style.display   = isFirst ? 'none' : 'inline-block';
+    nextBtn.style.display   = isLast  ? 'none' : 'inline-block';
+    submitBtn.style.display = 'none';
+  } else if (isFirst && !isLast) {
+    // 첫 문항: 다음만
+    prevBtn.style.display   = 'none';
+    nextBtn.style.display   = 'inline-block';
+    submitBtn.style.display = 'none';
+  } else if (isLast) {
+    // 마지막 문항: 이전 + 제출
+    prevBtn.style.display   = isFirst ? 'none' : 'inline-block';
+    nextBtn.style.display   = 'none';
+    submitBtn.style.display = 'inline-block';
+  } else {
+    // 중간 문항: 이전 + 다음
+    prevBtn.style.display   = 'inline-block';
+    nextBtn.style.display   = 'inline-block';
+    submitBtn.style.display = 'none';
+  }
+
+  updateProgress();
+}
+
+function updateProgress() {
+  const answered = Object.keys(userAnswers).length;
+  document.getElementById('progressText').textContent =
+    `${answered} / ${questions.length} 문항 풀이`;
+}
+
+/* ─── 제출 ─── */
+
+document.getElementById('submitBtn').addEventListener('click', () => {
+  const unanswered = questions.filter(q => !userAnswers[q.id]);
+  if (unanswered.length > 0) {
+    const ok = confirm(`${unanswered.length}개 문항이 아직 풀리지 않았습니다. 그래도 제출할까요?`);
+    if (!ok) return;
+  }
+
+  graded      = true;
+  submittedAt = new Date();
+
+  // 마지막 지문 시간 마감
+  if (lastPassageId) {
+    const elapsed = Date.now() - (passageTimes[lastPassageId] || Date.now());
+    passageElapsed[lastPassageId] = (passageElapsed[lastPassageId] || 0) + elapsed;
+  }
+
+  // 점수 계산
+  let correct = 0, total = 0, earned = 0;
+  questions.forEach(q => {
+    total += q.points;
+    if (userAnswers[q.id] === String(q.answer)) { correct++; earned += q.points; }
+  });
+
+  alert(`채점 결과\n\n맞은 문항: ${correct} / ${questions.length}\n획득 점수: ${earned} / ${total}점\n\n확인을 누르면 1번 문항부터 답안을 확인할 수 있습니다.`);
+
+  document.getElementById('submitBtn').style.display  = 'none';
+  document.getElementById('downloadBtn').style.display = 'inline-block';
+
+  // 상단 바를 답안 확인 모드로 전환
+  const topbar = document.querySelector('.topbar');
+  topbar.style.background = '#1a4a6b';
+  topbar.querySelector('.title').textContent = '📋 답안 확인 모드 — 선지를 클릭하면 해설이 펼쳐집니다';
+  document.getElementById('progressText').textContent =
+    `${correct} / ${questions.length} 정답 · ${earned}점`;
+
+  // 1번 문항으로 이동
+  currentIdx = 0;
+  renderQuestion(currentIdx);
+});
+
+/* ─── 결과 다운로드 ─── */
+
+document.getElementById('downloadBtn').addEventListener('click', () => {
+  const studentName = prompt('이름을 입력하세요 (파일명에 사용됩니다):', '') || '학생';
+  const totalMs = submittedAt ? (submittedAt.getTime() - startTime) : 0;
+
+  const passageDetail = {};
+  passages.forEach(p => {
+    passageDetail[p.id] = {
+      지문범위: p.range,
+      소요시간_분: Math.round((passageElapsed[p.id] || 0) / 60000 * 10) / 10
+    };
+  });
+
+  let correct = 0;
+  const detail = questions.map(q => {
+    const userAns  = userAnswers[q.id] || null;
+    const isCorrect = userAns === String(q.answer);
+    if (isCorrect) correct++;
+    const checked = checkLog[q.id] ? Array.from(checkLog[q.id]).sort() : [];
+    return {
+      문항번호: q.id,
+      배점: q.points,
+      유형: q.category || '',
+      학생선택: userAns ? Number(userAns) : null,
+      정답: q.answer,
+      정오: isCorrect ? '정답' : '오답',
+      확인한_해설_선지: checked.map(Number),
+      확인한_해설_개수: checked.length,
+      오답인데_정답해설만_확인: (!isCorrect && checked.length === 1 && Number(checked[0]) === q.answer)
+    };
+  });
+
+  const result = {
+    학생명: studentName,
+    시험명: EXAM_NAME,
+    제출시각: submittedAt ? submittedAt.toLocaleString('ko-KR') : null,
+    총소요시간_분: Math.round(totalMs / 60000 * 10) / 10,
+    지문별소요시간: passageDetail,
+    총문항수: questions.length,
+    맞은문항수: correct,
+    문항별상세: detail
+  };
+
+  sendResultToNotion(result);
+
+  const blob = new Blob([JSON.stringify(result, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const dateStr = submittedAt ? submittedAt.toISOString().slice(0, 10) : '';
+  a.href     = url;
+  a.download = `${studentName}_결과_${dateStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+/* ─── 초기화 ─── */
+
+initPassageTimes();
+renderQuestion(0);
+updateProgress();
+
+</script>
+</body>
+</html>
